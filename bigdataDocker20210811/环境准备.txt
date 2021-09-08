@@ -1,0 +1,390 @@
+python3:
+1. 安装python依赖：
+    yum install -y zlib-devel bzip2-devel openssl-devel ncurses-devel sqlite-devel readline-devel tk-devel gdbm-devel db4-devel libpcap-devel xz-devel libffi-devel
+2. 下载python：wget https://www.python.org/ftp/python/3.7.9/Python-3.7.9.tgz 
+3. 安装python：
+    tar -xvf Python-3.7.9.tgz 
+    cd Python-3.7.9
+    ./configure
+    make
+    make install    
+4. 安装tensorflow：
+   pip3 install tensorflow
+   
+mysql:
+1.卸载maria db
+   rpm -qa|grep maria
+   rpm -e --nodeps <package in previous step>   
+2.下载mysql：
+   wget http://repo.mysql.com/mysql-community-release-el7-5.noarch.rpm
+3. 安装mysql
+   rpm -Uvh mysql-community-release-el7-5.noarch.rpm
+   yum install mysql-community-server -y
+   修改/etc/my.cnf，增加一下内容，关闭密码验证
+   plugin-load=validate_password.so 
+   validate-password=OFF 
+ 4.启动mysql
+   systemctl start mysqld    
+ 5.修改root密码
+   mysql
+   mysql>update user set Password=PASSWORD('root@123')  where User='root';  
+   systemctl restart mysqld      
+   mysql
+   mysql>GRANT ALL PRIVILEGES ON *.* TO 'miner'@'%' IDENTIFIED BY 'miner@123';     
+ 
+java:
+1.上传或下载jdk：
+   scp jdk-8u281-linux-x64.tar.gz root@192.168.1.150:/root/
+2.安装jdk
+   tar -xvf  jdk-8u281-linux-x64.tar.gz
+   cp -r 
+3.修改配置
+   在 /etc/profile 增加以下配置：
+   export JAVA_HOME=/usr/local/java/jdk1.8.0_281
+   export JRE_HOME=/usr/local/java/jdk1.8.0_281/jre
+   export CLASSPATH=.:$CLASSPATH:$JAVA_HOME/lib:$JRE_HOME/lib
+   export PATH=$PATH:$JAVA_HOME/bin:$JRE_HOME/bin
+4. source /etc/profile
+   java -version   
+     
+hadoop:
+1.下载hadoop：wget http://mirrors.hust.edu.cn/apache/hadoop/common/stable2/hadoop-2.10.1.tar.gz
+2.安装hadoop：
+   tar -xvf hadoop-2.10.1.tar.gz
+3. 配置  
+   在 /etc/profile 增加以下配置：
+   export HADOOP_HOME=/root/hadoop-2.10.1
+   export PATH=$PATH:$HADOOP_HOME/bin
+4. source /etc/profile
+   hadoop version  
+5. 配置/root/hadoop-2.10.1/etc/hadoop/core-site.xml, 添加：
+    <property>
+      <name>fs.defaultFS</name>
+        <!-- 这里填的是你自己的ip，端口默认-->
+        <value>hdfs://192.168.1.150:9000</value>
+    </property>
+    <property>
+        <name>hadoop.tmp.dir</name>
+        <!-- 这里填的是你自定义的hadoop工作的目录，端口默认-->
+        <value>/root/hadoop-2.10.1/tmp</value>
+    </property>
+    <property>
+        <name>hadoop.native.lib</name>
+        <value>false</value>
+        <description>Should native hadoop libraries, if present, be used.
+        </description>
+    </property>
+    
+   配置/root/hadoop-2.10.1/etc/hadoop/hadoop-env.sh，修改：
+    export JAVA_HOME=/usr/local/java/jdk1.8.0_281
+    
+   配置/root/hadoop-2.10.1/etc/hadoop/hdfs-site.xml，增加：
+    <property>
+        <name>dfs.replication</name>
+        <value>1</value>
+    </property>
+    <property>
+        <name>dfs.secondary.http.address</name>
+        <!--这里是你自己的ip，端口默认-->
+        <value>192.168.1.150:50090</value>
+    </property>
+    <property>
+       <name>dfs.datanode.max.xcievers</name>
+       <value>4096</value>
+    </property>
+
+   配置/root/hadoop-2.10.1/etc/hadoop/mapred-site.xml，
+    cp /root/hadoop-2.10.1/etc/hadoop/mapred-site.xml.template /root/hadoop-2.10.1/etc/hadoop/mapred-site.xml
+    增加：
+    <property>
+        <name>mapreduce.framework.name</name>
+        <value>yarn</value>
+    </property>   
+    <property>
+        <name>mapreduce.jobhistory.address</name>
+       <!-- 配置实际的Master主机名和端口-->
+        <value>127.0.0.1:10020</value>
+    </property>
+    <property>
+        <name>mapreduce.jobhistory.webapp.address</name>
+        <!-- 配置实际的Master主机名和端口-->
+        <value>127.0.0.1:19888</value>
+    </property>
+
+    
+   配置 /root/hadoop-2.10.1/etc/hadoop/yarn-site.xml，增加：
+    <property>
+        <name>yarn.resourcemanager.hostname</name>
+        <!-- 配置实际的Master主机名 -->
+        <value>192.168.1.150</value>
+    </property>
+    <!-- reducer获取数据的方式 -->
+    <property>
+        <name>yarn.nodemanager.aux-services</name>
+        <value>mapreduce_shuffle</value>
+    </property>
+6. 格式化 hdfs
+   hadoop namenode -format
+7. 启动
+   /root/hadoop-2.10.1/sbin/start-all.sh
+   /root/hadoop-2.10.1/sbin/mr-jobhistory-daemon.sh start historyserver
+   jps to check start success
+8. 测试
+   hadoop fs -mkdir /input
+   hadoop fs -put temp* /input
+   hadoop jar /root/hadoop-2.10.1/share/hadoop/mapreduce/hadoop-mapreduce-examples-2.10.1.jar wordcount /input/ /output  
+   hadoop fs -get /output ./
+   
+hive:
+1. 下载hive: wget https://archive.apache.org/dist/hive/hive-1.2.1/apache-hive-1.2.1-bin.tar.gz
+2. 安装hive:
+    tar -xvf apache-hive-1.2.1-bin.tar.gz
+    cp apache-hive-1.2.1-bin/conf/hive-default.xml.template  apache-hive-1.2.1-bin/conf/hive-site.xml
+3. 配置  
+   在 /etc/profile 增加以下配置：
+   export HIVE_HOME=/root/apache-hive-1.2.1-bin
+   export PATH=$PATH:$HIVE_HOME/bin    
+4. source /etc/profile
+   hive --version
+5. 配置/root/apache-hive-1.2.1-bin/conf/hive-site.xml, 修改：
+  <property>
+        <name>javax.jdo.option.ConnectionUserName</name>
+        <value>miner</value>
+    </property>
+    <property>
+        <name>javax.jdo.option.ConnectionPassword</name>
+        <value>miner@123</value>
+    </property>
+   <property>
+        <name>javax.jdo.option.ConnectionURL</name>mysql
+        <value>jdbc:mysql://192.168.1.150:3306/hive</value>
+    </property>
+    <property>
+        <name>javax.jdo.option.ConnectionDriverName</name>
+        <value>com.mysql.jdbc.Driver</value>
+    </property>  
+    <-- 修改以下属性，to fix bug：  --/>
+    <property>
+        <name>hive.exec.local.scratchdir</name>
+        <value>${java.io.tmpdir}/${user.name}</value>
+        <description>Local scratch space for Hive jobs</description>
+    </property>
+    <property>
+        <name>hive.downloaded.resources.dir</name>
+        <value>${java.io.tmpdir}/${hive.session.id}_resources</value>
+        <description>Temporary local directory for added resources in the remote file system.</description>
+    </property>
+6. 配置数据库
+   配置jdbc：
+   wget https://repo1.maven.org/maven2/mysql/mysql-connector-java/5.1.43/mysql-connector-java-5.1.43.jar
+   cp mysql-connector-java-5.1.43-bin.jar /root/apache-hive-1.2.1-bin/lib/
+   
+   在mysql中创建数据库hive：
+   >create database hive CHARACTER SET utf8mb4;
+   
+   创建hive schema
+   /root/apache-hive-1.2.1-bin/bin/schematool -dbType mysql -initSchema
+7.启动
+   hive
+
+    
+spark:
+1.下载 wget https://archive.apache.org/dist/spark/spark-3.0.2/spark-3.0.2-bin-hadoop2.7-hive1.2.tgz
+2.安装 tar -xvf spark-3.0.2-bin-hadoop2.7-hive1.2.tgz
+   在/etc/profile 增加以下内容：
+   export SPARK_HOME=/root/spark-3.0.2-bin-hadoop2.7-hive1.2
+   export PATH=$PATH:$SPARK_HOME/bin
+3.通用配置
+   cd spark-3.0.2-bin-hadoop2.7-hive1.2/conf/  
+   cp slaves.template slaves
+   cp spark-env.sh.template spark-env.sh
+    增加spark-env.sh内容如下：
+    export SPARK_MASTER_HOST=localhost
+    export JAVA_HOME=/usr/local/java/jdk1.8.0_281
+    #export SPARK_DIST_CLASSPATH=$(${HADOOP_HOME}/bin/hadoop classpath)
+    export LD_LIBRARY_PATH=$HADOOP_HOME/lib/native/:$LD_LIBRARY_PATH
+    export SPARK_EXECUTOR_MEMORY=1G
+4.启动
+    /root/spark-3.0.2-bin-hadoop2.7-hive1.2/sbin/start-all.sh
+5.测试
+   /root/spark-3.0.2-bin-hadoop2.7-hive1.2/bin/spark-submit --class org.apache.spark.examples.SparkPi --master local /root/spark-3.0.2-bin-hadoop2.7-hive1.2/examples/jars/spark-examples_2.12-3.0.2.jar
+     
+    
+mysql数据库初始化：
+create database acc_filter CHARACTER SET utf8mb4;
+CREATE TABLE IF NOT EXISTS `raw_data`(
+   `id` INT UNSIGNED AUTO_INCREMENT,
+   `highTemp` VARCHAR(100) NOT NULL,
+   `lowTemp` VARCHAR(100) NOT NULL, 
+   `weather` VARCHAR(100) NOT NULL,   
+   `wind` VARCHAR(100) NOT NULL,   
+   `cleanity` VARCHAR(100) NOT NULL,  
+   `day` VARCHAR(100) NOT NULL,   
+   PRIMARY KEY ( `id` )
+);
+      
+CREATE TABLE IF NOT EXISTS `train_data`(
+   `id` INT UNSIGNED AUTO_INCREMENT,  
+   `month` int unsigned NOT NULL, 
+   `date` int unsigned NOT NULL,   
+   `windDirect` int unsigned NOT NULL,
+   `windForce` int unsigned NOT NULL, 
+   `weather` int unsigned NOT NULL,   
+   `pm25` float NOT NULL,   
+   `cleanity` float NOT NULL,  
+   `lng` float NOT NULL,           
+   `lat` float NOT NULL,        
+   `filterAge` float NOT NULL,  
+   `day` DATETIME NOT NULL,   
+   `realPm25` float NOT NULL, 
+   PRIMARY KEY ( `id` )
+);
+
+CREATE TABLE IF NOT EXISTS `train_xjtu`(
+   `id` INT UNSIGNED AUTO_INCREMENT,
+   `year` int unsigned NOT NULL,
+   `month` int unsigned NOT NULL, 
+   `date` int unsigned NOT NULL,   
+   `temperature` float NOT NULL,  
+   `lng` float NOT NULL,           
+   `lat` float NOT NULL,      
+   `realTemperature` float NOT NULL, 
+   PRIMARY KEY ( `id` )
+);   
+
+hbase：
+1.下载 wget https://mirrors.bfsu.edu.cn/apache/hbase/1.4.13/hbase-1.4.13-bin.tar.gz
+2.安装
+  tar -xvf hbase-1.4.13-bin.tar.gz
+3.配置
+  在/etc/profile 中增加以下内容：
+  # hbase
+  export HBASE_HOME=/root/hbase-1.4.13
+  export PATH=$PATH:$HBASE_HOME/bin
+  
+  在 /root/hbase-1.4.13/conf/hbase-env.sh 中增加以下内容：
+  export JAVA_HOME=/usr/local/java/jdk1.8.0_281
+  export HADOOP_HOME=${HADOOP_HOME}
+  #attention: need comment out parameter HBASE_CLASSPATH in stand alone mode, or the HMaster can not start successfully.
+  #export HBASE_CLASSPATH=/root/hbase-1.4.13/conf  
+  export HBASE_MANAGES_ZK=true
+  
+  在 /root/hbase-1.4.13/conf/hbase-site.xml 中增加以下内容：
+  <property>
+????<name>hbase.rootdir</name>
+????<value>hdfs://192.168.1.150:9000/hbase</value>
+  </property>
+  
+  在 /root/hbase-1.4.13/bin/hbase 中 CLASSPATH=${CLASSPATH}:$JAVA_HOME/lib/tools.jar 下面增加以下内容
+  CLASSPATH=$HBASE_HOME/lib/*
+
+4.source /etc/profile
+5.验证安装：  
+  hbase version  
+6.启动
+  /root/hbase-1.4.13/bin/start-hbase.sh
+
+kylin:
+1.下载 wget https://archive.apache.org/dist/kylin/apache-kylin-3.1.2/apache-kylin-3.1.2-bin-hbase1x.tar.gz
+2.安装
+  tar -xvf apache-kylin-3.1.2-bin-hbase1x.tar.gz 
+3.创建hdfs目录 
+   hadoop fs -mkdir /kylin
+   hadoop fs -chown -R root:root /kylin
+   hadoop fs -ls /    
+4.配置
+  在/etc/profile 中增加以下内容：
+  # kylin
+  export KYLIN_HOME=/root/apache-kylin-3.1.2-bin-hbase1x
+  export KYLIN_CONF=/root/apache-kylin-3.1.2-bin-hbase1x/conf
+  export tomcat_root=$KYLIN_HOME/tomcat
+  
+  在/root/apache-kylin-3.1.2-bin-hbase1x/conf/kylin.properties 中增加以下内容：
+  kylin.env.hdfs-working-dir=/kylin 
+  
+  在/root/apache-kylin-3.1.2-bin-hbase1x/bin/kylin.sh 中开始位置增加以下内容：
+  export HBASE_CLASSPATH_PREFIX=${tomcat_root}/bin/bootstrap.jar:${tomcat_root}/bin/tomcat-juli.jar:${tomcat_root}/lib/*:$hive_dependency:$HBASE_CLASSPATH_PREFIX
+
+  在/root/apache-kylin-3.1.2-bin-hbase1x/bin/find-hive-dependency.sh 中的
+  hive_lib=`find -L ${hive_lib_dir} -name *.jar ! -name *druid* ! -name *slf4j* ! -name *avatica* ! -name *calcite* ! -name *jackson-datatype-joda* ! -name *derby* -printf %p: | sed s/:$//`
+  中加入  "! -name *jackson*"
+  
+  在/root/apache-kylin-3.1.2-bin-hbase1x/bin/find-spark-dependency.sh 中的
+  spark_dependency=`find -L ${spark_home}/jars -name *.jar ! -name *jackson* ! -name *slf4j* ! -name *calcite* ! -name *doc* ! -name *test* ! -name *sources* -printf %p: | sed s/:$//`
+  中加入  "! -name *jackson*"
+  
+5. source /etc/profile
+6. check环境依赖
+   /root/apache-kylin-3.1.2-bin-hbase1x/bin/check-env.sh
+7.启动   
+   /root/apache-kylin-3.1.2-bin-hbase1x/bin/kylin.sh start
+8.运行示例 $KYLIN_HOME/bin/sample.sh
+  查看：
+  hbase(main):001:0> list
+  hive> use default;
+  hive> show tables;
+  http://localhost:7070/kylin  默认账号:ADMIN, 密码：KYLIN
+
+superset:
+1.安装依赖：sudo yum -y install gcc gcc-c++ libffi-devel python-devel python-pip python-wheel openssl-devel cyrus-sasl-devel openldap-devel
+2.安装：pip install apache-superset
+3.数据库初始化：superset db upgrade
+4.export FLASK_APP=superset
+  #parameters in bellow command: name:admin first name:xy last name:wang password:123456  
+  superset fab create-admin         
+  superset load_examples
+  superset init
+  superset run -h 0.0.0.0 -p 8089 --with-threads --reload --debugger
+5.curl http://localhost:8089
+6.pip install --upgrade kylinpy
+7.在页面配置数据源：
+  kylin://ADMIN:KYLIN@192.168.1.150:7070/learn_kylin
+    
+    
+    -------------------------------------------------------docker化----------------------------------------
+docker安装
+>sudo yum install -y yum-utils device-mapper-persistent-data lvm2
+>sudo yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
+>sudo yum-config-manager --add-repo https://mirrors.tuna.tsinghua.edu.cn/docker-ce/linux/centos/docker-ce.repo
+>sudo yum install docker-ce docker-ce-cli containerd.io
+>sudo systemctl start docker
+>sudo docker run hello-world
+
+创建网桥
+sudo docker network create --driver=bridge --subnet 172.18.0.0/16 hadoop_test
+
+mysql:
+docker pull mysql:5.7.35.51
+docker run -itd --name mysql-test -p 3307:3306 -e MYSQL_ROOT_PASSWORD=123456 mysql:5.7.35
+
+manager:
+docker run -itd  --net=hadoop_test --name hadoop-master -p 50070:50070 -p 8088:8088 -p 9000:9000  wxy/hadoop_test:1.0 
+docker run -itd  --net=hadoop_test --ip 172.18.0.2 --name hadoop-master --hostname hadoopmaster1 --add-host=hadoopworker1:172.18.0.3\
+-p 7070:7070 -p 8080:8080 -p 8088:8088 -p 8089:8089 -p 9000:9000 -p 50070:50070 \
+-v /root/xiyu/dockerMaking/master/config/hadoop-2.10.1/etc/hadoop/core-site.xml:/root/hadoop-2.10.1/etc/hadoop/core-site.xml \
+-v /root/xiyu/dockerMaking/master/config/hadoop-2.10.1/etc/hadoop/hdfs-site.xml:/root/hadoop-2.10.1/etc/hadoop/hdfs-site.xml \
+-v /root/xiyu/dockerMaking/master/config/hadoop-2.10.1/etc/hadoop/mapred-site.xml:/root/hadoop-2.10.1/etc/hadoop/mapred-site.xml \
+-v /root/xiyu/dockerMaking/master/config/hadoop-2.10.1/etc/hadoop/yarn-site.xml:/root/hadoop-2.10.1/etc/hadoop/yarn-site.xml \
+-v /root/xiyu/dockerMaking/master/config/hadoop-2.10.1/etc/hadoop/slaves:/root/hadoop-2.10.1/etc/hadoop/slaves \
+-v /root/xiyu/dockerMaking/master/config/apache-hive-1.2.1-bin/conf/hive-site.xml:/root/apache-hive-1.2.1-bin/conf/hive-site.xml \
+-v /root/xiyu/dockerMaking/master/config/hbase-1.4.13/conf/hbase-site.xml:/root/hbase-1.4.13/conf/hbase-site.xml  \
+-v /root/xiyu/dockerMaking/master/config/hbase-1.4.13/conf/regionservers:/root/hbase-1.4.13/conf/regionservers \
+-v /root/xiyu/dockerMaking/master/config/spark-3.0.2-bin-hadoop2.7-hive1.2/conf/slaves:/root/spark-3.0.2-bin-hadoop2.7-hive1.2/conf/slaves  \
+wxy/hadoop_test:1.1
+/root/xiyu/dockerMaking/master/start_master_all.sh hadoop-master
+
+worker:
+docker run -itd  --net=hadoop_test --name hadoop-worker1  wxy/hadoop_test:1.0
+docker run -itd  --net=hadoop_test --ip 172.18.0.3 --name hadoop-worker1 --hostname hadoopworker1 --add-host=hadoopmaster1:172.18.0.2 \
+-v /root/xiyu/dockerMaking/worker/config/hadoop-2.10.1/etc/hadoop/core-site.xml:/root/hadoop-2.10.1/etc/hadoop/core-site.xml \
+-v /root/xiyu/dockerMaking/worker/config/hadoop-2.10.1/etc/hadoop/hdfs-site.xml:/root/hadoop-2.10.1/etc/hadoop/hdfs-site.xml \
+-v /root/xiyu/dockerMaking/worker/config/hadoop-2.10.1/etc/hadoop/mapred-site.xml:/root/hadoop-2.10.1/etc/hadoop/mapred-site.xml \
+-v /root/xiyu/dockerMaking/worker/config/hadoop-2.10.1/etc/hadoop/yarn-site.xml:/root/hadoop-2.10.1/etc/hadoop/yarn-site.xml \
+-v /root/xiyu/dockerMaking/worker/config/hadoop-2.10.1/etc/hadoop/slaves:/root/hadoop-2.10.1/etc/hadoop/slaves \
+-v /root/xiyu/dockerMaking/worker/config/apache-hive-1.2.1-bin/conf/hive-site.xml:/root/apache-hive-1.2.1-bin/conf/hive-site.xml \
+-v /root/xiyu/dockerMaking/worker/config/hbase-1.4.13/conf/hbase-site.xml:/root/hbase-1.4.13/conf/hbase-site.xml  \
+-v /root/xiyu/dockerMaking/worker/config/hbase-1.4.13/conf/regionservers:/root/hbase-1.4.13/conf/regionservers \
+-v /root/xiyu/dockerMaking/worker/config/spark-3.0.2-bin-hadoop2.7-hive1.2/conf/slaves:/root/spark-3.0.2-bin-hadoop2.7-hive1.2/conf/slaves  \
+wxy/hadoop_test:1.1
+修改/etc/hosts,增加namenode的hostname
+在spark-3.0.2-bin-hadoop2.7-hive1.2/sbin/spark-config.sh中增加export JAVA_HOME="/usr/local/java/jdk1.8.0_281"
